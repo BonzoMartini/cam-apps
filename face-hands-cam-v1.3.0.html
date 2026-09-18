@@ -1,0 +1,777 @@
+<!-- FACE + HANDS CAM — v1.3.0 — webcam face and hand landmark tracking: oval, mesh, eyes, brows, lips, irises -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Face + Hands Cam v1.3.0</title>
+<style>
+  :root{
+    --hull:#0B0F12; --deck:#141A1F; --chalk:#E9E6DE;
+    --marine:#3E8E8C; --rust:#C2542F; --line:rgba(233,230,222,.16);
+    --ui: 13px/1.4 "Helvetica Neue", Helvetica, Arial, sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;background:var(--hull);color:var(--chalk);font:var(--ui);-webkit-font-smoothing:antialiased}
+  body{display:flex;flex-direction:column;overflow:hidden}
+
+  header{display:flex;align-items:baseline;gap:14px;padding:10px 14px;border-bottom:1px solid var(--line);flex:0 0 auto}
+  header h1{margin:0;font-size:15px;font-weight:700;letter-spacing:.14em}
+  header .ver{font-size:11px;color:var(--marine);letter-spacing:.08em}
+  header .hint{margin-left:auto;font-size:11px;opacity:.5}
+
+  main{flex:1 1 auto;display:flex;min-height:0}
+  @media (max-width:860px){ main{flex-direction:column} }
+
+  #stagewrap{flex:1 1 auto;display:flex;align-items:center;justify-content:center;min-height:0;padding:10px;
+    background:repeating-linear-gradient(135deg,#0B0F12 0 12px,#0D1216 12px 24px)}
+  canvas#stage{max-width:100%;max-height:100%;display:block;background:#000;border:1px solid var(--line)}
+
+  main:fullscreen{background:#000}
+  main:fullscreen #stagewrap{position:absolute;inset:0;padding:0;background:#000}
+  main:fullscreen canvas#stage{width:100%;height:100%;max-width:none;max-height:none;object-fit:contain;border:none}
+  main:fullscreen #panel{position:absolute;top:0;right:0;bottom:0;width:310px;max-width:80vw;z-index:2;
+    background:rgba(11,15,18,.82);backdrop-filter:blur(10px);border-left:1px solid var(--line)}
+  main:fullscreen #panel.hidden{display:none}
+  main.fauxfull{position:fixed;inset:0;z-index:99;background:#000}
+  main.fauxfull #stagewrap{position:absolute;inset:0;padding:0;background:#000}
+  main.fauxfull canvas#stage{width:100%;height:100%;max-width:none;max-height:none;object-fit:contain;border:none}
+  main.fauxfull #panel{position:absolute;top:0;right:0;bottom:0;width:310px;max-width:80vw;z-index:2;
+    background:rgba(11,15,18,.82);backdrop-filter:blur(10px);border-left:1px solid var(--line)}
+  #panel{flex:0 0 310px;border-left:1px solid var(--line);overflow-y:auto;padding:12px 14px 40px}
+  @media (max-width:860px){ #panel{flex:0 0 46vh;border-left:none;border-top:1px solid var(--line)} }
+  #panel.hidden{display:none}
+
+  details.grp{border-top:1px solid var(--line);margin:0 0 10px;padding:8px 0 0}
+  details.grp:first-of-type{border-top:none;padding-top:0}
+  details.grp > summary{cursor:pointer;list-style:none;padding:6px 0;font-size:11px;letter-spacing:.14em;
+    color:var(--marine);user-select:none}
+  details.grp > summary::-webkit-details-marker{display:none}
+  details.grp > summary::after{content:"+";float:right;opacity:.55;font-size:13px;line-height:1}
+  details.grp[open] > summary::after{content:"\2013"}
+
+  #bar{display:none;position:absolute;left:0;right:0;bottom:0;z-index:5;gap:8px;justify-content:center;
+    padding:10px 10px calc(10px + env(safe-area-inset-bottom));
+    background:linear-gradient(to top, rgba(11,15,18,.85), rgba(11,15,18,0))}
+  #bar button{flex:1 1 0;max-width:110px;padding:12px 6px;font-size:13px;border-radius:8px;
+    background:rgba(20,26,31,.9);backdrop-filter:blur(8px);touch-action:manipulation}
+  #bar button[data-on="1"]{border-color:var(--rust);color:var(--rust)}
+
+  @media (max-width:860px), (pointer:coarse){
+    header .hint{display:none}
+    header{padding:8px 12px}
+    main{position:relative;display:block;height:100%}
+    #stagewrap, main:fullscreen #stagewrap, main.fauxfull #stagewrap{position:absolute;inset:0;padding:0;background:#000}
+    canvas#stage, main:fullscreen canvas#stage, main.fauxfull canvas#stage{
+      width:100%;height:100%;max-width:none;max-height:none;object-fit:contain;border:none}
+    #bar{display:flex}
+    #panel, main:fullscreen #panel, main.fauxfull #panel{
+      position:absolute;left:0;right:0;top:auto;bottom:0;width:auto;max-width:none;max-height:72vh;flex:none;
+      border:none;border-top:1px solid var(--line);background:rgba(11,15,18,.93);backdrop-filter:blur(12px);
+      transform:translateY(110%);transition:transform .25s ease;z-index:6;
+      padding:14px 14px calc(96px + env(safe-area-inset-bottom));overflow-y:auto;-webkit-overflow-scrolling:touch}
+    #panel.open, main:fullscreen #panel.open, main.fauxfull #panel.open{transform:translateY(0)}
+    #panel.hidden{display:block}
+    #panel::before{content:"";display:block;width:44px;height:4px;border-radius:2px;margin:-6px auto 10px;
+      background:rgba(233,230,222,.35)}
+    label.row{margin:14px 0;font-size:14px}
+    label.row span{flex:0 0 120px}
+    input[type=range]{height:32px}
+    select,button{padding:11px 12px;font-size:14px}
+    input[type=checkbox]{width:24px;height:24px}
+    input[type=color]{width:62px;height:34px}
+    details.grp > summary{padding:12px 0;font-size:12px}
+    .btns button{padding:13px 10px}
+  }
+
+  label.row{display:flex;align-items:center;gap:8px;margin:8px 0;font-size:12px}
+  label.row span{flex:0 0 96px;opacity:.75}
+  label.row output{flex:0 0 40px;text-align:right;font-variant-numeric:tabular-nums;opacity:.6;font-size:11px}
+  input[type=range]{flex:1 1 auto;accent-color:var(--marine);height:18px}
+  select,button{background:var(--deck);color:var(--chalk);border:1px solid var(--line);border-radius:2px;padding:6px 8px;font:var(--ui)}
+  select{width:100%}
+  input[type=color]{width:46px;height:26px;padding:0;border:1px solid var(--line);background:var(--deck)}
+  input[type=checkbox]{accent-color:var(--marine)}
+  button{cursor:pointer}
+  button:hover{border-color:var(--marine)}
+  button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--marine);outline-offset:1px}
+  .btns{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}
+  .btns button.wide{grid-column:1 / -1}
+  button.rec[data-on="1"]{border-color:var(--rust);color:var(--rust)}
+  .note{font-size:11px;opacity:.5;margin:6px 0 0}
+  #msg{padding:10px 14px;color:var(--rust);font-size:12px}
+  #msg:empty{display:none}
+  #status{padding:6px 14px;font-size:11px;opacity:.55}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>FACE + HANDS</h1>
+  <span class="ver">v1.3.0</span>
+  <span class="hint">V reset camera · C clear paint · H panel · S still · R record · F fullscreen</span>
+</header>
+
+<div id="msg"></div>
+<div id="status">Starting…</div>
+
+<main>
+  <div id="stagewrap"><canvas id="stage"></canvas></div>
+
+  <div id="bar">
+    <button id="barPanel">Controls</button>
+    <button id="barFlip">Flip</button>
+    <button id="barSnap">Photo</button>
+    <button id="barRec" data-on="0">Rec</button>
+    <button id="barFull">Full</button>
+  </div>
+
+  <div id="panel">
+    <details class="grp" open>
+      <summary>Camera</summary>
+      <select id="camsel"></select>
+      <div class="btns"><button id="camreset" class="wide">Reset camera</button></div>
+      <label class="row"><span>Mirror</span><input type="checkbox" id="mirror" checked></label>
+      <label class="row"><span>Contrast</span><input type="range" id="vcon" min="0.4" max="2.4" step="0.05" value="1"><output></output></label>
+      <label class="row"><span>Saturation</span><input type="range" id="vsat" min="0" max="2.5" step="0.05" value="1"><output></output></label>
+      <label class="row"><span>Faces</span><input type="range" id="maxFaces" min="1" max="5" step="1" value="2"><output></output></label>
+    </details>
+
+    <details class="grp">
+      <summary>Background</summary>
+      <select id="bg">
+        <option value="video" selected>Camera</option>
+        <option value="dim">Dimmed camera</option>
+        <option value="grey">Greyscale camera</option>
+        <option value="black">Black — lines only</option>
+      </select>
+      <label class="row"><span>Dim</span><input type="range" id="dim" min="0" max="1" step="0.02" value="0.65"><output></output></label>
+    </details>
+
+    <details class="grp" open>
+      <summary>Features</summary>
+      <label class="row"><span>Face oval</span><input type="checkbox" id="fOval" checked></label>
+      <label class="row"><span>Mesh</span><input type="checkbox" id="fMesh"></label>
+      <label class="row"><span>Eyes</span><input type="checkbox" id="fEyes" checked></label>
+      <label class="row"><span>Eyebrows</span><input type="checkbox" id="fBrows" checked></label>
+      <label class="row"><span>Lips</span><input type="checkbox" id="fLips" checked></label>
+      <label class="row"><span>Pupils</span><input type="checkbox" id="fIris" checked></label>
+      <label class="row"><span>Nose</span><input type="checkbox" id="fNose" checked></label>
+      <label class="row"><span>Gaze lines</span><input type="checkbox" id="fGaze"></label>
+      <label class="row"><span>Vertices</span><input type="checkbox" id="fPts"></label>
+      <label class="row"><span>Fill mouth</span><input type="checkbox" id="fFill"></label>
+      <label class="row"><span>Box + label</span><input type="checkbox" id="fBox" checked></label>
+      <label class="row"><span>Expressions</span><input type="checkbox" id="fBlend" checked></label>
+    </details>
+
+    <details class="grp">
+      <summary>Hands</summary>
+      <label class="row"><span>Track hands</span><input type="checkbox" id="hOn" checked></label>
+      <label class="row"><span>Max hands</span><input type="range" id="hMax" min="1" max="4" step="1" value="2"><output></output></label>
+      <label class="row"><span>Skeleton</span><input type="checkbox" id="hSkel" checked></label>
+      <label class="row"><span>Joints</span><input type="checkbox" id="hJoints" checked></label>
+      <label class="row"><span>Fingertips</span><input type="checkbox" id="hTips" checked></label>
+      <label class="row"><span>Box + label</span><input type="checkbox" id="hBox" checked></label>
+      <label class="row"><span>Pinch meter</span><input type="checkbox" id="hPinch" checked></label>
+      <label class="row"><span>Joint size</span><input type="range" id="hDot" min="1" max="16" step="0.5" value="4"><output></output></label>
+      <label class="row"><span>Colour</span><input type="color" id="cHand" value="#F5D547"></label>
+    </details>
+
+    <details class="grp">
+      <summary>Style</summary>
+      <select id="cmode">
+        <option value="feature" selected>Colour per feature</option>
+        <option value="single">Single colour</option>
+        <option value="face">Colour per face</option>
+        <option value="sample">Colour from camera</option>
+      </select>
+      <label class="row"><span>Line weight</span><input type="range" id="lw" min="0.5" max="10" step="0.5" value="2"><output></output></label>
+      <label class="row"><span>Opacity</span><input type="range" id="op" min="0.1" max="1" step="0.02" value="0.95"><output></output></label>
+      <label class="row"><span>Glow</span><input type="range" id="glow" min="0" max="40" step="1" value="8"><output></output></label>
+      <label class="row"><span>Vertex size</span><input type="range" id="ptSize" min="0.5" max="8" step="0.5" value="1.5"><output></output></label>
+      <label class="row"><span>Text size</span><input type="range" id="tSize" min="8" max="30" step="1" value="13"><output></output></label>
+      <label class="row"><span>Single</span><input type="color" id="cSingle" value="#7DF9C0"></label>
+      <label class="row"><span>Oval</span><input type="color" id="cOval" value="#E9E6DE"></label>
+      <label class="row"><span>Mesh</span><input type="color" id="cMesh" value="#3E8E8C"></label>
+      <label class="row"><span>Eyes</span><input type="color" id="cEyes" value="#4FC3F7"></label>
+      <label class="row"><span>Brows</span><input type="color" id="cBrows" value="#F5D547"></label>
+      <label class="row"><span>Lips</span><input type="color" id="cLips" value="#FF3B6B"></label>
+      <label class="row"><span>Pupils</span><input type="color" id="cIris" value="#FFFFFF"></label>
+    </details>
+
+    <details class="grp">
+      <summary>Paint</summary>
+      <p class="note">Persistence leaves the lines behind as the face moves.</p>
+      <label class="row"><span>Persistence</span><input type="range" id="decay" min="0" max="1" step="0.01" value="0"><output></output></label>
+      <select id="blend">
+        <option value="source-over" selected>Paint over</option>
+        <option value="lighter">Add</option>
+        <option value="screen">Screen</option>
+        <option value="difference">Difference</option>
+      </select>
+    </details>
+
+    <details class="grp">
+      <summary>Output</summary>
+      <div class="btns">
+        <button id="clear">Clear paint</button>
+        <button id="snap">Save still</button>
+        <button id="rec" class="rec" data-on="0">Record</button>
+        <button id="full">Fullscreen</button>
+        <button id="hide" class="wide">Hide panel</button>
+      </div>
+    </details>
+  </div>
+</main>
+
+<script data-cfasync="false" data-no-optimize="1" data-no-defer="1">
+"use strict";
+const VERSION = "1.3.0";
+const $ = id => document.getElementById(id);
+const msg = $("msg"), status = $("status");
+
+// surface any script error on the page itself, since an iframe's console is easy to miss
+addEventListener("error", e => { msg.textContent = "Script error: " + (e.message || e.error) + " (line " + e.lineno + ")"; });
+addEventListener("unhandledrejection", e => { msg.textContent = "Unhandled: " + (e.reason && e.reason.message || e.reason); });
+
+const video = document.createElement("video");
+video.playsInline = true; video.muted = true;
+
+const stage = $("stage"), ctx = stage.getContext("2d");
+const paint = document.createElement("canvas"), pxc = paint.getContext("2d");
+const small = document.createElement("canvas"), sxc = small.getContext("2d", {willReadFrequently:true});
+const SW = 160, SH = 120;
+small.width = SW; small.height = SH;
+let pixels = null;
+
+let stream = null, recorder = null, chunks = [], camOn = true;
+let landmarker = null, CONN = null, lastVideoTime = -1, result = null;
+let handLandmarker = null, HAND_CONN = null, handResult = null;
+
+/* ---------- controls ---------- */
+const P = {};
+const ids = ["mirror","vcon","vsat","maxFaces","bg","dim",
+  "fOval","fMesh","fEyes","fBrows","fLips","fIris","fNose","fGaze","fPts","fFill","fBox","fBlend",
+  "cmode","lw","op","glow","ptSize","tSize",
+  "cSingle","cOval","cMesh","cEyes","cBrows","cLips","cIris","decay","blend",
+  "hOn","hMax","hSkel","hJoints","hTips","hBox","hPinch","hDot","cHand"];
+function readAll(){
+  for(const id of ids){
+    const el = $(id);
+    P[id] = el.type === "checkbox" ? el.checked : (el.type === "range" ? parseFloat(el.value) : el.value);
+    const out = el.parentElement && el.parentElement.querySelector("output");
+    if(out) out.textContent = el.value;
+  }
+}
+ids.forEach(id => $(id).addEventListener("input", readAll));
+$("maxFaces").addEventListener("change", () => { if(landmarker) landmarker.setOptions({numFaces: Math.round(P.maxFaces)}); });
+$("hMax").addEventListener("change", () => { if(handLandmarker) handLandmarker.setOptions({numHands: Math.round(P.hMax)}); });
+
+/* ---------- face model ---------- */
+async function initModel(){
+  const step = t => { status.textContent = t; };
+  const timeout = (p, ms, what) => Promise.race([p,
+    new Promise((_, rej) => setTimeout(() => rej(new Error("timed out loading " + what)), ms))]);
+  try{
+    step("1/4 fetching library…");
+    const vision = await timeout(
+      import("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs"), 30000, "library");
+
+    step("2/4 fetching wasm…");
+    const files = await timeout(vision.FilesetResolver.forVisionTasks(
+      "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm"), 60000, "wasm");
+
+    // GPU first, CPU as fallback — the GPU delegate can stall in some browsers and iframes
+    const make = async (cls, opts, ms, what) => {
+      try{ return await timeout(cls.createFromOptions(files, opts), ms, what); }
+      catch(err){
+        step(what + ": GPU path failed, retrying on CPU…");
+        const cpu = JSON.parse(JSON.stringify(opts));
+        cpu.baseOptions.delegate = "CPU";
+        return await timeout(cls.createFromOptions(files, cpu), ms, what + " (CPU)");
+      }
+    };
+
+    step("3/4 fetching face model…");
+    landmarker = await make(vision.FaceLandmarker, {
+      baseOptions:{ modelAssetPath:
+        "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
+        delegate: "GPU" },
+      runningMode: "VIDEO",
+      numFaces: Math.round(P.maxFaces),
+      outputFaceBlendshapes: true
+    }, 60000, "face model");
+
+    const F = vision.FaceLandmarker;
+    CONN = {
+      oval: F.FACE_LANDMARKS_FACE_OVAL,
+      mesh: F.FACE_LANDMARKS_TESSELATION,
+      eyes: F.FACE_LANDMARKS_LEFT_EYE.concat(F.FACE_LANDMARKS_RIGHT_EYE),
+      brows: F.FACE_LANDMARKS_LEFT_EYEBROW.concat(F.FACE_LANDMARKS_RIGHT_EYEBROW),
+      lips: F.FACE_LANDMARKS_LIPS,
+      irisL: F.FACE_LANDMARKS_LEFT_IRIS,
+      irisR: F.FACE_LANDMARKS_RIGHT_IRIS,
+      eyeL: F.FACE_LANDMARKS_LEFT_EYE,
+      eyeR: F.FACE_LANDMARKS_RIGHT_EYE
+    };
+
+    step("4/4 fetching hand model…");
+    handLandmarker = await make(vision.HandLandmarker, {
+      baseOptions:{ modelAssetPath:
+        "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
+        delegate: "GPU" },
+      runningMode: "VIDEO",
+      numHands: Math.round(P.hMax)
+    }, 60000, "hand model");
+    HAND_CONN = vision.HandLandmarker.HAND_CONNECTIONS;
+
+    step("Models ready.");
+    setTimeout(() => { if(status.textContent === "Models ready.") status.textContent = ""; }, 2500);
+  }catch(e){
+    status.textContent = "";
+    msg.textContent = "Tracking models did not load: " + e.message +
+      ". They come from cdn.jsdelivr.net and storage.googleapis.com — a security plugin, ad blocker or " +
+      "content security policy on the page may be blocking them, or the page is not on https.";
+  }
+}
+
+/* ---------- camera ---------- */
+async function listCams(){
+  const devs = await navigator.mediaDevices.enumerateDevices();
+  const cams = devs.filter(d => d.kind === "videoinput");
+  $("camsel").innerHTML = cams.map((c,i)=>`<option value="${c.deviceId}">${c.label||"Camera "+(i+1)}</option>`).join("");
+}
+const isTouch = matchMedia("(pointer:coarse)").matches;
+let facing = "user";
+async function start(deviceId){
+  try{
+    if(stream) stream.getTracks().forEach(t => t.stop());
+    const ideal = isTouch ? 960 : 1280;
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: deviceId ? {deviceId:{exact:deviceId}}
+                      : {width:{ideal:ideal},height:{ideal:Math.round(ideal*0.5625)},facingMode:facing},
+      audio:false });
+    video.srcObject = stream; await video.play();
+    stage.width = Math.min(video.videoWidth || 1280, isTouch ? 960 : 1280);
+    stage.height = Math.round(stage.width * (video.videoHeight / video.videoWidth || 0.5625));
+    paint.width = stage.width; paint.height = stage.height;
+    lastVideoTime = -1; result = null;
+    msg.textContent = "";
+    await listCams();
+  }catch(e){
+    msg.textContent = "No camera feed: " + e.message + ". Allow camera access, then reload.";
+  }
+}
+$("camsel").addEventListener("change", e => start(e.target.value));
+
+/* ---------- helpers ---------- */
+const NOSE_BRIDGE = [168,6,197,195,5,4,1];
+const NOSTRILS = [98,97,2,326,327];
+
+function pt(lm, i, W, H){
+  const p = lm[i];
+  return [ (P.mirror ? 1 - p.x : p.x) * W, p.y * H ];
+}
+function sampleColour(x, y, W, H){
+  if(!pixels) return "#fff";
+  const sx2 = Math.min(SW-1, Math.max(0, ((x/W)*SW)|0)), sy2 = Math.min(SH-1, Math.max(0, ((y/H)*SH)|0));
+  const i = (sy2*SW + sx2) * 4;
+  return `rgb(${pixels[i]},${pixels[i+1]},${pixels[i+2]})`;
+}
+function colourFor(feature, faceIdx, x, y, W, H){
+  switch(P.cmode){
+    case "single": return P.cSingle;
+    case "face":   return `hsl(${(faceIdx*97 + 200) % 360},85%,62%)`;
+    case "sample": return sampleColour(x, y, W, H);
+    default:       return P["c" + feature] || P.cSingle;
+  }
+}
+function strokeConnections(g, lm, conns, W, H){
+  g.beginPath();
+  for(const c of conns){
+    const a = pt(lm, c.start !== undefined ? c.start : c[0], W, H);
+    const b = pt(lm, c.end !== undefined ? c.end : c[1], W, H);
+    g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]);
+  }
+  g.stroke();
+}
+function strokePath(g, lm, idxs, W, H){
+  g.beginPath();
+  idxs.forEach((i,n) => { const p = pt(lm, i, W, H); n ? g.lineTo(p[0],p[1]) : g.moveTo(p[0],p[1]); });
+  g.stroke();
+}
+function circleFrom(g, lm, conns, W, H, fill){
+  const idx = new Set();
+  conns.forEach(c => { idx.add(c.start !== undefined ? c.start : c[0]); idx.add(c.end !== undefined ? c.end : c[1]); });
+  let cx = 0, cy = 0, n = 0;
+  const pts = [];
+  idx.forEach(i => { const p = pt(lm, i, W, H); pts.push(p); cx += p[0]; cy += p[1]; n++; });
+  cx /= n; cy /= n;
+  let r = 0; pts.forEach(p => r += Math.hypot(p[0]-cx, p[1]-cy));
+  r /= n;
+  g.beginPath(); g.arc(cx, cy, r, 0, Math.PI*2);
+  fill ? g.fill() : g.stroke();
+  return [cx, cy, r];
+}
+function centroid(lm, conns, W, H){
+  const idx = new Set();
+  conns.forEach(c => { idx.add(c.start !== undefined ? c.start : c[0]); idx.add(c.end !== undefined ? c.end : c[1]); });
+  let cx = 0, cy = 0, n = 0;
+  idx.forEach(i => { const p = pt(lm, i, W, H); cx += p[0]; cy += p[1]; n++; });
+  return [cx/n, cy/n];
+}
+
+/* ---------- drawing ---------- */
+function drawFaces(){
+  const W = stage.width, H = stage.height;
+
+  pxc.setTransform(1,0,0,1,0,0);
+  pxc.globalCompositeOperation = "destination-out";
+  const fade = (1 - P.decay) * 0.6;
+  if(fade > 0.0001){ pxc.fillStyle = `rgba(0,0,0,${fade})`; pxc.fillRect(0,0,W,H); }
+  else pxc.clearRect(0,0,0,0);
+  pxc.globalCompositeOperation = "source-over";
+
+  if(!result || !result.faceLandmarks || !CONN) return;
+
+  const g = pxc;
+  g.globalAlpha = P.op;
+  g.lineWidth = P.lw;
+  g.lineJoin = g.lineCap = "round";
+  g.shadowBlur = P.glow;
+
+  result.faceLandmarks.forEach((lm, fi) => {
+    const setCol = (feature, x, y) => {
+      const c = colourFor(feature, fi, x, y, W, H);
+      g.strokeStyle = g.fillStyle = g.shadowColor = c;
+    };
+    const nose = pt(lm, 1, W, H);
+
+    if(P.fMesh){
+      g.save();
+      g.globalAlpha = P.op * 0.28; g.lineWidth = Math.max(0.4, P.lw * 0.35); g.shadowBlur = 0;
+      setCol("Mesh", nose[0], nose[1]);
+      strokeConnections(g, lm, CONN.mesh, W, H);
+      g.restore();
+    }
+    if(P.fOval){ setCol("Oval", nose[0], nose[1]); strokeConnections(g, lm, CONN.oval, W, H); }
+    if(P.fBrows){ setCol("Brows", nose[0], nose[1]); strokeConnections(g, lm, CONN.brows, W, H); }
+    if(P.fEyes){ setCol("Eyes", nose[0], nose[1]); strokeConnections(g, lm, CONN.eyes, W, H); }
+    if(P.fNose){
+      setCol("Oval", nose[0], nose[1]);
+      strokePath(g, lm, NOSE_BRIDGE, W, H);
+      strokePath(g, lm, NOSTRILS, W, H);
+    }
+    if(P.fLips){
+      setCol("Lips", nose[0], nose[1]);
+      if(P.fFill){
+        g.save(); g.globalAlpha = P.op * 0.35;
+        g.beginPath();
+        const ring = [61,146,91,181,84,17,314,405,321,375,291,409,270,269,267,0,37,39,40,185];
+        ring.forEach((i,n) => { const p = pt(lm,i,W,H); n ? g.lineTo(p[0],p[1]) : g.moveTo(p[0],p[1]); });
+        g.closePath(); g.fill(); g.restore();
+      }
+      strokeConnections(g, lm, CONN.lips, W, H);
+    }
+    if(P.fIris && lm.length > 470){
+      setCol("Iris", nose[0], nose[1]);
+      const l = circleFrom(g, lm, CONN.irisL, W, H, false);
+      const r = circleFrom(g, lm, CONN.irisR, W, H, false);
+      g.save();
+      g.beginPath(); g.arc(l[0], l[1], Math.max(1, l[2]*0.35), 0, Math.PI*2); g.fill();
+      g.beginPath(); g.arc(r[0], r[1], Math.max(1, r[2]*0.35), 0, Math.PI*2); g.fill();
+      g.restore();
+
+      if(P.fGaze){
+        const el = centroid(lm, CONN.eyeL, W, H), er = centroid(lm, CONN.eyeR, W, H);
+        g.beginPath();
+        g.moveTo(l[0], l[1]); g.lineTo(l[0] + (l[0]-el[0])*14, l[1] + (l[1]-el[1])*14);
+        g.moveTo(r[0], r[1]); g.lineTo(r[0] + (r[0]-er[0])*14, r[1] + (r[1]-er[1])*14);
+        g.stroke();
+      }
+    }
+    if(P.fPts){
+      const s = P.ptSize;
+      for(let i=0;i<lm.length;i++){
+        const p = pt(lm, i, W, H);
+        setCol("Mesh", p[0], p[1]);
+        g.fillRect(p[0]-s/2, p[1]-s/2, s, s);
+      }
+    }
+  });
+
+  g.shadowBlur = 0; g.globalAlpha = 1;
+}
+
+const TIPS = [4,8,12,16,20];
+function handColour(i, lm, W, H){
+  if(P.cmode === "single") return P.cSingle;
+  if(P.cmode === "face") return `hsl(${(i*97 + 40) % 360},85%,62%)`;
+  if(P.cmode === "sample"){ const p = pt(lm, 0, W, H); return sampleColour(p[0], p[1], W, H); }
+  return P.cHand;
+}
+function drawHands(){
+  if(!P.hOn || !handResult || !handResult.landmarks || !HAND_CONN) return;
+  const W = stage.width, H = stage.height, g = pxc;
+  g.globalAlpha = P.op;
+  g.lineWidth = P.lw;
+  g.lineJoin = g.lineCap = "round";
+  g.shadowBlur = P.glow;
+
+  handResult.landmarks.forEach((lm, hi) => {
+    const col = handColour(hi, lm, W, H);
+    g.strokeStyle = g.fillStyle = g.shadowColor = col;
+
+    if(P.hSkel) strokeConnections(g, lm, HAND_CONN, W, H);
+    if(P.hJoints){
+      const r = P.hDot * 0.5;
+      for(let i=0;i<lm.length;i++){
+        const p = pt(lm, i, W, H);
+        g.beginPath(); g.arc(p[0], p[1], r, 0, Math.PI*2); g.fill();
+      }
+    }
+    if(P.hTips){
+      for(const i of TIPS){
+        const p = pt(lm, i, W, H);
+        g.beginPath(); g.arc(p[0], p[1], P.hDot*1.5, 0, Math.PI*2); g.stroke();
+      }
+    }
+    if(P.hPinch){
+      const a = pt(lm, 4, W, H), b = pt(lm, 8, W, H);
+      g.save(); g.globalAlpha = P.op * 0.7;
+      g.beginPath(); g.moveTo(a[0],a[1]); g.lineTo(b[0],b[1]); g.stroke();
+      g.restore();
+    }
+  });
+  g.shadowBlur = 0; g.globalAlpha = 1;
+}
+
+function drawHandHUD(){
+  if(!P.hOn || !handResult || !handResult.landmarks) return;
+  const W = stage.width, H = stage.height, fs = P.tSize;
+  ctx.save();
+  ctx.font = `${fs}px ui-monospace, Menlo, Consolas, monospace`;
+  ctx.lineWidth = Math.max(1, P.lw * 0.6);
+  handResult.landmarks.forEach((lm, hi) => {
+    let minx=1e9,maxx=-1e9,miny=1e9,maxy=-1e9;
+    for(let i=0;i<lm.length;i++){
+      const p = pt(lm, i, W, H);
+      minx=Math.min(minx,p[0]); maxx=Math.max(maxx,p[0]); miny=Math.min(miny,p[1]); maxy=Math.max(maxy,p[1]);
+    }
+    const col = handColour(hi, lm, W, H);
+    ctx.strokeStyle = ctx.fillStyle = col;
+    let side = "HAND";
+    if(handResult.handednesses && handResult.handednesses[hi]){
+      const raw = handResult.handednesses[hi][0].categoryName;
+      side = (P.mirror ? raw : (raw === "Left" ? "Right" : "Left")).toUpperCase();
+    }
+    if(P.hBox){
+      const pad = fs*0.5, x = minx-pad, y = miny-pad, w = (maxx-minx)+pad*2, h = (maxy-miny)+pad*2;
+      const c = Math.min(w,h)*0.22;
+      ctx.beginPath();
+      ctx.moveTo(x, y+c); ctx.lineTo(x,y); ctx.lineTo(x+c,y);
+      ctx.moveTo(x+w-c, y); ctx.lineTo(x+w,y); ctx.lineTo(x+w,y+c);
+      ctx.moveTo(x+w, y+h-c); ctx.lineTo(x+w,y+h); ctx.lineTo(x+w-c,y+h);
+      ctx.moveTo(x+c, y+h); ctx.lineTo(x,y+h); ctx.lineTo(x,y+h-c);
+      ctx.stroke();
+      ctx.globalAlpha = 0.85;
+      ctx.fillText(side, x, y - fs*0.4);
+      ctx.globalAlpha = 1;
+    }
+    if(P.hPinch){
+      const a = pt(lm, 4, W, H), b = pt(lm, 8, W, H);
+      const wrist = pt(lm, 0, W, H), mid = pt(lm, 9, W, H);
+      const span = Math.max(1, Math.hypot(mid[0]-wrist[0], mid[1]-wrist[1]));
+      const pinch = Math.max(0, Math.min(1, 1 - Math.hypot(b[0]-a[0], b[1]-a[1]) / (span*1.2)));
+      ctx.globalAlpha = 0.85;
+      ctx.fillText(`PINCH ${(pinch*100).toFixed(0)}%`, (a[0]+b[0])/2 + fs*0.5, (a[1]+b[1])/2 - fs*0.3);
+      ctx.globalAlpha = 1;
+    }
+  });
+  ctx.restore();
+}
+
+function drawHUD(){
+  if(!result || !result.faceLandmarks) return;
+  const W = stage.width, H = stage.height, fs = P.tSize;
+  ctx.save();
+  ctx.font = `${fs}px ui-monospace, Menlo, Consolas, monospace`;
+  ctx.lineWidth = Math.max(1, P.lw * 0.6);
+  ctx.textBaseline = "alphabetic";
+
+  result.faceLandmarks.forEach((lm, fi) => {
+    let minx=1e9,maxx=-1e9,miny=1e9,maxy=-1e9;
+    for(let i=0;i<lm.length;i++){
+      const p = pt(lm, i, W, H);
+      minx=Math.min(minx,p[0]); maxx=Math.max(maxx,p[0]); miny=Math.min(miny,p[1]); maxy=Math.max(maxy,p[1]);
+    }
+    const col = P.cmode === "single" ? P.cSingle : `hsl(${(fi*97 + 200) % 360},85%,62%)`;
+    ctx.strokeStyle = ctx.fillStyle = col;
+
+    if(P.fBox){
+      const w = maxx-minx, h = maxy-miny, c = Math.min(w,h)*0.22;
+      ctx.beginPath();
+      ctx.moveTo(minx, miny+c); ctx.lineTo(minx,miny); ctx.lineTo(minx+c,miny);
+      ctx.moveTo(maxx-c, miny); ctx.lineTo(maxx,miny); ctx.lineTo(maxx,miny+c);
+      ctx.moveTo(maxx, maxy-c); ctx.lineTo(maxx,maxy); ctx.lineTo(maxx-c,maxy);
+      ctx.moveTo(minx+c, maxy); ctx.lineTo(minx,maxy); ctx.lineTo(minx,maxy-c);
+      ctx.stroke();
+      ctx.globalAlpha = 0.85;
+      ctx.fillText(`FACE-${String(fi+1).padStart(2,"0")}`, minx, miny - fs*0.45);
+      ctx.globalAlpha = 1;
+    }
+    if(P.fBlend && result.faceBlendshapes && result.faceBlendshapes[fi]){
+      const cats = result.faceBlendshapes[fi].categories;
+      const pick = ["jawOpen","eyeBlinkLeft","eyeBlinkRight","mouthSmileLeft","browInnerUp"];
+      const vals = pick.map(name => {
+        const c = cats.find(k => k.categoryName === name);
+        return [name, c ? c.score : 0];
+      });
+      ctx.globalAlpha = 0.8;
+      vals.forEach(([name, v], i) => {
+        const y = miny + i*fs*1.25 + fs;
+        const x = maxx + fs*0.6;
+        ctx.fillText(name.replace(/([A-Z])/g," $1").toUpperCase().slice(0,14), x, y);
+        ctx.strokeRect(x, y + fs*0.25, fs*4, fs*0.35);
+        ctx.fillRect(x, y + fs*0.25, fs*4*v, fs*0.35);
+      });
+      ctx.globalAlpha = 1;
+    }
+  });
+  ctx.restore();
+}
+
+/* ---------- loop ---------- */
+function frame(now){
+  requestAnimationFrame(frame);
+  const live = camOn && video.videoWidth && video.readyState >= 2;
+  if(!stage.width) return;
+  const W = stage.width, H = stage.height;
+
+  if(live && landmarker && video.currentTime !== lastVideoTime){
+    lastVideoTime = video.currentTime;
+    try{ result = landmarker.detectForVideo(video, now); }catch(e){ /* skip a frame */ }
+    if(P.hOn && handLandmarker){
+      try{ handResult = handLandmarker.detectForVideo(video, now); }catch(e){ /* skip a frame */ }
+    } else handResult = null;
+  }
+  if(live && P.cmode === "sample"){
+    sxc.setTransform(1,0,0,1,0,0);
+    sxc.drawImage(video, 0, 0, SW, SH);
+    pixels = sxc.getImageData(0,0,SW,SH).data;
+  }
+
+  if(live){ drawFaces(); drawHands(); }
+
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.globalCompositeOperation = "source-over";
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = "#000"; ctx.fillRect(0,0,W,H);
+
+  if(live && P.bg !== "black"){
+    ctx.filter = `contrast(${P.vcon}) saturate(${P.bg === "grey" ? 0 : P.vsat})`;
+    ctx.globalAlpha = P.bg === "dim" ? (1 - P.dim) : 1;
+    ctx.save();
+    if(P.mirror){ ctx.translate(W,0); ctx.scale(-1,1); }
+    ctx.drawImage(video, 0, 0, W, H);
+    ctx.restore();
+    ctx.filter = "none"; ctx.globalAlpha = 1;
+  }
+
+  ctx.globalCompositeOperation = P.blend;
+  ctx.drawImage(paint, 0, 0);
+  ctx.globalCompositeOperation = "source-over";
+
+  if(live){ drawHUD(); drawHandHUD(); }
+}
+
+/* ---------- output ---------- */
+$("camreset").onclick = async () => {
+  const btn = $("camreset");
+  btn.textContent = "Resetting…";
+  if(stream) stream.getTracks().forEach(t => t.stop());
+  stream = null; video.pause();
+  result = null; handResult = null; lastVideoTime = -1;
+  await new Promise(r => setTimeout(r, 250));
+  camOn = true;
+  await start($("camsel").value || undefined);
+  btn.textContent = "Reset camera";
+};
+$("clear").onclick = () => pxc.clearRect(0,0,paint.width,paint.height);
+$("snap").onclick = () => {
+  const a = document.createElement("a");
+  a.download = `face-v${VERSION}-${Date.now()}.png`;
+  a.href = stage.toDataURL("image/png"); a.click();
+};
+$("rec").onclick = () => {
+  const btn = $("rec");
+  if(recorder && recorder.state === "recording"){ recorder.stop(); return; }
+  const mime = MediaRecorder.isTypeSupported("video/webm;codecs=vp9") ? "video/webm;codecs=vp9" : "video/webm";
+  recorder = new MediaRecorder(stage.captureStream(30), {mimeType:mime, videoBitsPerSecond: 8e6});
+  chunks = [];
+  recorder.ondataavailable = e => e.data.size && chunks.push(e.data);
+  recorder.onstop = () => {
+    const a = document.createElement("a");
+    a.download = `face-v${VERSION}-${Date.now()}.webm`;
+    a.href = URL.createObjectURL(new Blob(chunks, {type:"video/webm"}));
+    a.click();
+    btn.textContent = "Record"; btn.dataset.on = "0";
+  };
+  recorder.start();
+  btn.textContent = "Stop"; btn.dataset.on = "1";
+};
+$("full").onclick = () => {
+  const el = document.querySelector("main");
+  if(document.fullscreenElement){ document.exitFullscreen(); return; }
+  if(el.requestFullscreen){ el.requestFullscreen().catch(() => el.classList.toggle("fauxfull")); }
+  else el.classList.toggle("fauxfull");
+};
+$("hide").onclick = () => {
+  const p = $("panel"); p.classList.toggle("hidden");
+  $("hide").textContent = p.classList.contains("hidden") ? "Show panel" : "Hide panel";
+};
+$("barPanel").onclick = () => {
+  const p = $("panel");
+  p.classList.toggle("open");
+  $("barPanel").textContent = p.classList.contains("open") ? "Close" : "Controls";
+};
+$("barFlip").onclick = async () => {
+  facing = facing === "user" ? "environment" : "user";
+  $("mirror").checked = (facing === "user"); readAll();
+  $("camsel").value = "";
+  await start();
+};
+$("barSnap").onclick = () => $("snap").click();
+$("barFull").onclick = () => $("full").click();
+$("barRec").onclick = () => $("rec").click();
+function syncRec(){
+  const on = recorder && recorder.state === "recording" ? "1" : "0";
+  $("barRec").dataset.on = on;
+  $("barRec").textContent = on === "1" ? "Stop" : "Rec";
+}
+setInterval(syncRec, 400);
+$("stagewrap").addEventListener("pointerdown", () => {
+  const p = $("panel");
+  if(p.classList.contains("open")){ p.classList.remove("open"); $("barPanel").textContent = "Controls"; }
+});
+
+addEventListener("keydown", e => {
+  if(e.key === "Escape") document.querySelector("main").classList.remove("fauxfull");
+  if(/input|select/i.test(e.target.tagName)) return;
+  const k = e.key.toLowerCase();
+  if(k === "h") $("hide").click();
+  if(k === "c") $("clear").click();
+  if(k === "v") $("camreset").click();
+  if(k === "s") $("snap").click();
+  if(k === "r") $("rec").click();
+  if(k === "f") $("full").click();
+});
+
+try{ readAll(); }catch(e){ msg.textContent = "Control setup failed: " + e.message; }
+status.textContent = "Starting model load…";
+initModel();
+start();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
