@@ -86,7 +86,7 @@ dd{margin:0;font:12px var(--mono);font-variant-numeric:tabular-nums;text-align:r
 
 <div class="app">
   <header>
-    <div class="brand">Mocap Take Viewer<small>v1.2.3</small></div>
+    <div class="brand">Mocap Take Viewer<small>v1.2.4</small></div>
     <div class="spacer"></div>
     <input type="file" id="file" accept=".fbx" multiple hidden>
     <button class="btn" id="fsBtn" type="button" aria-label="Enter fullscreen"><svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor" id="fsIcon"><path d="M1 1h5v2H3v3H1zM10 1h5v5h-2V3h-3zM1 10h2v3h3v2H1zM13 10h2v5h-5v-2h3z"/></svg><span id="fsLabel">Fullscreen</span></button>
@@ -177,7 +177,7 @@ import * as fflate from 'three/addons/libs/fflate.module.js';
 import { NURBSCurve } from 'three/addons/curves/NURBSCurve.js';
 import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 
-const VERSION = '1.2.3';
+const VERSION = '1.2.4';
 const $ = id => document.getElementById(id);
 const ACCENT = 0xff9a3c, BONE = 0xcfe3f2;
 
@@ -225,6 +225,9 @@ function toast(msg, err) {
   clearTimeout(toast._t); toast._t = setTimeout(() => t.hidden = true, err ? 6000 : 2800);
 }
 
+/* FBXLoader adds a same-named copy of a bone (as its child) for every extra mesh skinned to it */
+const isDupBone = b => b.parent && b.parent.isBone && b.parent.name === b.name;
+
 /* meshes exported without normals render black: rebuild smooth normals */
 function fixNormals(ms) {
   const g = ms.geometry;
@@ -242,7 +245,7 @@ function fixNormals(ms) {
 function addTake(name, object, isDemo, note) {
   const bones = [], meshes = [];
   object.traverse(o => {
-    if (o.isBone) bones.push(o);
+    if (o.isBone && !isDupBone(o)) bones.push(o);
     if (o.isMesh) { fixNormals(o); meshes.push(o); o.userData.origMat = o.material; o.frustumCulled = false; }
   });
   if (!bones.length && !(object.animations || []).length) { toast(`${name}: no skeleton or animation found`, true); return; }
@@ -364,7 +367,7 @@ function renderInfo() {
 function renderBones() {
   const ul = $('boneList'); ul.innerHTML = '';
   const walk = (o, d) => {
-    if (o.isBone) {
+    if (o.isBone && !isDupBone(o)) {
       const li = document.createElement('li');
       li.style.paddingLeft = (d * 10) + 'px';
       li.innerHTML = `${d ? '└ ' : ''}<b></b>`; li.querySelector('b').textContent = o.name || '(bone)';
