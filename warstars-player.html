@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WarStars</title>
+<!-- WarStars random side-by-side player v1.1.0 -->
+<style>
+  html, body { margin: 0; height: 100%; background: #000; color: #fff; overflow: hidden; }
+  #wall { display: flex; width: 100%; height: 100%; }
+  #wall video { flex: 1 1 50%; min-width: 0; height: 100%; object-fit: contain; background: #000; display: block; }
+  @media (max-aspect-ratio: 1/1) { #wall { flex-direction: column; } #wall video { flex-basis: 50%; width: 100%; height: 50%; } }
+  #hint { position: fixed; inset: auto 0 24px 0; margin: auto; width: max-content; font: 13px/1 system-ui, sans-serif;
+          letter-spacing: .04em; color: #fff; background: rgba(0,0,0,.55);
+          border: 1px solid rgba(255,255,255,.4); padding: 10px 14px; cursor: pointer; }
+</style>
+</head>
+<body>
+<div id="wall">
+  <video id="v0" muted playsinline autoplay crossorigin="anonymous"></video>
+  <video id="v1" muted playsinline autoplay crossorigin="anonymous"></video>
+</div>
+<button id="hint" type="button">Click for Sound &amp; Fullscreen, ESC to exit</button>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.7/hls.min.js"></script>
+<script>
+// v1.1.0 — plays two (left video → left speaker, right → right) random WarStars videos side by side; each picks a new one when it ends.
+const COLLECTION = '68dbb71b4ed72b9c37e5ee9d';
+const ASSETS = [
+  '6abd0cc7747193cb6392815b', // 01
+  '6abd0ca81aa2b0fe47fbc0c4', // 02
+  '6abd0cbb33c9a62cd73a4fc5', // 03
+  '6abd0cbd33c9a62cd73a4fc8', // 04
+  '6abd0cb81aa2b0fe47fbc0dd'  // 05
+];
+const src = id => `https://video.gumlet.io/${COLLECTION}/${id}/main.m3u8`;
+
+const players = [document.getElementById('v0'), document.getElementById('v1')];
+const current = [null, null];
+const hls = [null, null];
+let soundOn = false;
+
+function pick(i) {
+  // avoid what's on the other screen and what this screen just played
+  const other = current[1 - i], prev = current[i];
+  const pool = ASSETS.filter(a => a !== other && a !== prev);
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+function load(i) {
+  const v = players[i], id = pick(i);
+  v.muted = !soundOn;
+  current[i] = id;
+  if (hls[i]) { hls[i].destroy(); hls[i] = null; }
+  if (window.Hls && Hls.isSupported()) {
+    const h = new Hls();
+    hls[i] = h;
+    h.loadSource(src(id));
+    h.attachMedia(v);
+    h.on(Hls.Events.MANIFEST_PARSED, () => v.play().catch(() => {}));
+    h.on(Hls.Events.ERROR, (_, d) => { if (d.fatal) setTimeout(() => load(i), 1000); });
+  } else {
+    v.src = src(id); // Safari / iOS native HLS
+    v.play().catch(() => {});
+  }
+}
+
+players.forEach((v, i) => {
+  v.addEventListener('ended', () => load(i));
+  v.addEventListener('error', () => setTimeout(() => load(i), 1000));
+  load(i);
+});
+
+// Browsers block autoplay with sound until the viewer interacts once.
+const hint = document.getElementById('hint');
+function enableSound() {
+  if (soundOn) return;
+  soundOn = true;
+  // Route left video hard left, right video hard right.
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    players.forEach((v, i) => {
+      const pan = ctx.createStereoPanner();
+      pan.pan.value = i === 0 ? -1 : 1;
+      ctx.createMediaElementSource(v).connect(pan).connect(ctx.destination);
+    });
+    ctx.resume();
+  } catch (e) { /* falls back to normal stereo */ }
+  players.forEach(v => { v.muted = false; v.volume = 1; v.play().catch(() => {}); });
+  hint.hidden = true;
+}
+['pointerdown', 'keydown', 'touchstart'].forEach(e => document.addEventListener(e, enableSound, { once: false }));
+
+// Sound button also goes fullscreen; Esc leaves fullscreen.
+// (bound on pointerdown: the button is hidden as soon as sound starts, so a click would never reach it)
+function goFullscreen() {
+  const el = document.documentElement;
+  const req = el.requestFullscreen || el.webkitRequestFullscreen;
+  if (req && !document.fullscreenElement) { try { const p = req.call(el); if (p && p.catch) p.catch(() => {}); } catch (e) {} }
+}
+hint.addEventListener('pointerdown', goFullscreen);
+hint.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') goFullscreen(); });
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && document.fullscreenElement) document.exitFullscreen().catch(() => {});
+});
+
+// Secret shuffle: press S to swap both screens to new videos.
+document.addEventListener('keydown', e => {
+  if (e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
+  if (e.key === 's' || e.key === 'S') { load(0); load(1); }
+});
+</script>
+</body>
+</html>
