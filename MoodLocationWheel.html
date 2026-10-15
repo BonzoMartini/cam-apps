@@ -1,12 +1,13 @@
 <!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
-<title>Mood Location Wheel</title>
+<title>Double Location Wheel</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,800&family=Barlow+Condensed:wght@500;600&display=swap">
 <style>
-/* Single dark stage: wheel centred, fixed pointer at 12 o'clock, result as full-screen card */
+/* Three concentric rings: outer mood, middle location A, inner location B; pointer at 12 o'clock; result card */
+[hidden]{display:none!important}
 :root{
   --bg:#12100f; --fg:#efe7dc; --dim:#8c8378;
-  --loc:#d9a441; --mood:#6fa3b8; --pin:#e8553b;
+  --mood:#5D92E3; --loc:#F2A5C8; --locb:#3A9173; --pin:#F5E055;
   --display:"Bricolage Grotesque",system-ui,sans-serif;
   --label:"Barlow Condensed","Arial Narrow",sans-serif;
   color-scheme:dark;
@@ -21,19 +22,22 @@ body{background:var(--bg);color:var(--fg);font-family:var(--label);overflow:hidd
 #hl{list-style:none;margin:0;padding:0;overflow-y:auto;display:flex;flex-direction:column;gap:8px}
 #hl li{display:flex;flex-direction:column;line-height:1.1;padding-bottom:8px;border-bottom:1px solid #2a2622}
 #hl li:first-child .m{font-size:20px}#hl li:first-child .l{font-size:24px}
-#hl .m{color:var(--mood);font:600 16px var(--label)}#hl .l{color:var(--loc);font:800 19px var(--display)}
+#hl .m{color:var(--mood);font:600 16px var(--label)}#hl .l{font:800 19px var(--display)}
 #hl .e{color:var(--dim);font-size:14px;border:0}
+.a{color:var(--loc)}.b{color:var(--locb)}
 #clr{align-self:flex-start;background:transparent;color:var(--dim);border:1px solid #3a352f;padding:5px 12px;font-size:12px}
 @media (max-width:760px){html,body{height:auto}body{flex-direction:column;overflow:auto;padding-block:16px}#log{width:100%;max-height:none}}
 #wrap{position:relative;touch-action:none}
 canvas{display:block;cursor:grab}
 canvas:active{cursor:grabbing}
-#live{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.5em;pointer-events:none;text-align:center;
+#live{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.4em;pointer-events:none;text-align:center;
   font-family:var(--display);font-weight:800;text-shadow:0 0 18px var(--bg),0 0 6px var(--bg),0 2px 2px var(--bg)}
-#lm{font-size:clamp(30px,7vw,84px);line-height:1;color:var(--mood)}
-#ll{font-size:clamp(36px,8.5vw,104px);line-height:1;color:var(--loc)}
-#bar{display:flex;gap:18px;align-items:center;font-size:15px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim)}
-#bar b{color:var(--loc);font-weight:600}#bar i{color:var(--mood);font-style:normal;font-weight:600}
+#lm{font-size:clamp(28px,6vw,76px);line-height:1;color:var(--mood)}
+#ll{font-size:clamp(30px,7vw,88px);line-height:1;display:flex;gap:.3em;flex-wrap:wrap;justify-content:center}
+#lx{font:600 clamp(14px,2vw,22px) var(--label);letter-spacing:.3em;text-transform:uppercase;color:var(--pin)}
+#nx{color:var(--pin);min-width:8.5em}
+#bar{display:flex;gap:16px;align-items:center;flex-wrap:wrap;justify-content:center;font-size:15px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim)}
+#bar i{font-style:normal;font-weight:600}
 button{font:600 15px var(--label);letter-spacing:.12em;text-transform:uppercase;background:var(--fg);color:var(--bg);border:0;padding:9px 20px;border-radius:2px;cursor:pointer}
 button:focus-visible{outline:2px solid var(--pin);outline-offset:3px}
 #ver{position:fixed;right:max(12px,env(safe-area-inset-right,0px));bottom:calc(8px + env(safe-area-inset-bottom,0px));font-size:12px;color:var(--dim);letter-spacing:.1em}
@@ -41,7 +45,8 @@ button:focus-visible{outline:2px solid var(--pin);outline-offset:3px}
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 #res .k{font-size:clamp(13px,1.6vw,18px);letter-spacing:.3em;text-transform:uppercase;color:var(--dim)}
 #res .m{font:800 clamp(40px,10vw,150px)/.95 var(--display);color:var(--mood);text-wrap:balance}
-#res .l{font:800 clamp(48px,13vw,200px)/.9 var(--display);color:var(--loc);text-wrap:balance}
+#res .l{font:800 clamp(44px,11vw,180px)/.9 var(--display);text-wrap:balance}
+#res .m.a{color:var(--loc)}#res .m.b{color:var(--locb)}
 #res .h{margin-top:3vh;font-size:14px;letter-spacing:.2em;text-transform:uppercase;color:var(--dim)}
 #res:not([hidden]) .m,#res:not([hidden]) .l{animation:pop .5s cubic-bezier(.2,1.4,.4,1) both}
 #res:not([hidden]) .l{animation-delay:.12s}
@@ -50,41 +55,41 @@ button:focus-visible{outline:2px solid var(--pin);outline-offset:3px}
 </style>
 
 <div id="stage">
-<div id="wrap"><canvas id="c" aria-label="Spinner wheel: drag to spin"></canvas>
-<div id="live" hidden><div id="lm"></div><div id="ll"></div></div></div>
-<div id="bar"><span>Inner <b>location</b></span><button id="go">Spin</button><span>Outer <i>mood</i></span></div>
+<div id="wrap"><canvas id="c" aria-label="Three-ring spinner: drag a ring to spin"></canvas>
+<div id="live" hidden><div id="lx" hidden>Double location</div><div id="lm"></div><div id="ll"></div></div></div>
+<div id="bar"><span>Outer <i style="color:var(--mood)">mood</i></span><span>Middle <i class="a">location A</i></span><button id="go">Spin</button><span>Inner <i class="b">location B</i></span><span id="nx"></span></div>
 </div>
 <aside id="log"><h2>Previous spins</h2><ol id="hl"></ol><button id="clr">Clear</button></aside>
-<div id="ver">v2.3</div>
-<div id="res" hidden><div class="k">mood</div><div class="m" id="rm"></div><div class="k">location</div><div class="l" id="rl"></div><div class="h">click to close</div></div>
+<div id="ver">v4.1 double</div>
+<div id="res" hidden><div class="k" id="rmk">mood</div><div class="m" id="rm"></div><div class="k" id="rk">location</div><div class="l" id="rl"></div><div class="h">click to close</div></div>
 
 <script>
-const LOC=`café station observatory tower amphitheatre library square glasshouse garden dome hall dock skybridge platform outpost vault arcade factory monastery ring lighthouse bazaar theatre temple colony plaza grove scrapyard fortress caravan well ossuary pier starport tavern palace courtyard windmill hangar crypt grotto oasis canal village maze citadel ruin chamber bridge bunker staircase fairground railway market cavern orbital moon rooftop spire crater labyrinth monorail airship tree kitchen`.split(' ');
-const MOOD=["brutalist","baroque","gothic","rococo","neoclassical","art deco","organic","fractal","modular","Hive Mind","labyrinthine","crystalline","skeletal","cavernous","monolithic","tessellated","biomorphic","surreal","whimsical","cozy","eerie","mythic","eldritch","nostalgic","melancholic","utopian","dystopian","pastoral","idyllic","romantic","dreamlike","ominous","psychedelic","decadent","timeless","uncanny","sacred","cyberpunk","steampunk","solarpunk","biopunk","clockpunk","post-apocalyptic","SciFi","mythpunk","dark fantasy","sword & sorcery","heroic","slipstream","volcanic","glacial","desert","jungle","marshland","oceanic","subterranean","floating","aerial","underwater","stellar","planetary","asteroid","fungal","overgrown","storm-swept","tidal","hollow","bone","obsidian","glass","iron","brass","rusty","luminous","phosphorescent","translucent","mossy","carved","polished","molten","woven","jagged","iridescent","shifting","petrified","root-bound","shadowed","Wes Anderson","Ghibli","Lovecraftian","Dark Souls","cozy-core","vaporwave","folk-horror","clock","undersea","archive","neon","abandoned","cliffside","spice","dream","ice","whispering","cloud","puppet","candlelit","ruined","data","hidden","crystal","mirage","storm","coral","echo","infinity","painted","aurora","spiral","phantom","drowned"];
+const LOC=`café station observatory tower amphitheatre library square glasshouse garden dome hall dock skybridge platform outpost vault arcade factory monastery ring lighthouse bazaar theatre temple colony plaza grove scrapyard fortress caravan well pier starport tavern palace courtyard windmill hangar crypt grotto oasis canal village maze citadel ruin chamber bridge bunker staircase fairground railway market cavern orbital moon rooftop spire crater labyrinth monorail airship tree kitchen`.split(' ');
+const MOOD=["brutalist","minimalist","gothic","rococo","neoclassical","art deco","organic","fractal","modular","Hive Mind","labyrinthine","toasty","skeletal","cavernous","monolithic","tessellated","biomorphic","surreal","whimsical","cozy","retro","serene","mythic","eldritch","nostalgic","melancholic","utopian","dystopian","pastoral","romantic","Mid-Century","ominous","psychedelic","decadent","uncanny","sacred","cyberpunk","steampunk","solarpunk","post-apocalyptic","SciFi","De Stijl","dark fantasy","sword & sorcery","heroic","slipstream","volcanic","glacial","desert","jungle","marshland","oceanic","subterranean","floating","aerial","musical","stellar","planetary","fungal","overgrown","snug","bone","obsidian","plastic","iron","brass","rusty","luminous","fabric","translucent","mossy","carved","polished","molten","woven","jagged","iridescent","shifting","petrified","shadowed","Wes Anderson","Ghibli","Lovecraftian","mellow","vaporwave","folk-horror","Memphis","undersea","archive","neon","abandoned","cliffside","spice","frozen","whispering","cloud","puppet","candlelit","ruined","data","hidden","crystal","mirage","storm","coral","echo","infinity","painted","aurora","spiral","phantom","drowned"];
+// split locations alternately into A and B
+const LOCA=LOC.filter((_,i)=>i%2===0), LOCB=LOC.filter((_,i)=>i%2===1);
 
-const TAU=Math.PI*2, FR=.28, DRAG=.03; // low friction + small constant drag = heavy wheel
+const TAU=Math.PI*2, FR=.28, DRAG=.03;
 const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
-const hist={outer:[],inner:[]};
 const cv=document.getElementById('c'), ctx=cv.getContext('2d');
 const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
-const wheels={
-  outer:{items:MOOD,r0:.6,r1:.985,hue:'--mood',rot:0,v:0,snap:false,last:-1,img:null},
-  inner:{items:LOC,r0:.13,r1:.585,hue:'--loc',rot:0,v:0,snap:false,last:-1,img:null}
-};
-let S=0,R=0,dpr=1,flap=0,spinning=false;
+const mkW=(items,r0,r1,hue,pitch)=>({items,r0,r1,hue,pitch,rot:Math.random()*TAU,v:0,snap:false,last:-1,img:null,hist:[]});
+const mood=mkW(MOOD,.67,.985,'--mood',340), wa=mkW(LOCA,.4,.66,'--loc',460), wb=mkW(LOCB,.13,.39,'--locb',600);
+const W=[mood,wa,wb];
+let S=0,R=0,dpr=1,flap=0,spinning=false,count=0,drag=null;
 
 function layout(){
   const wide=innerWidth>760;
-  S=Math.floor(Math.min(innerWidth-32-(wide?262:0),wide?innerHeight-90:innerHeight*.75,860));
+  S=Math.floor(Math.min(innerWidth-32-(wide?262:0),wide?innerHeight-90:innerHeight*.75,900));
   dpr=devicePixelRatio||1; R=S/2-14;
   cv.width=cv.height=S*dpr; cv.style.width=cv.style.height=S+'px';
-  for(const w of Object.values(wheels)) w.img=bake(w);
-  draw();
+  for(const w of W) w.img=bake(w);
+  W.forEach(w=>w.rot=snapRot(w,idx(w)));draw();
 }
 function bake(w){
   const c=document.createElement('canvas'),d=Math.ceil(2*R*dpr);c.width=c.height=d;
   const g=c.getContext('2d');g.scale(dpr,dpr);g.translate(R,R);
-  const n=w.items.length,s=TAU/n,base=css(w.hue),bg=css('--bg'),fg=css('--fg');
+  const n=w.items.length,s=TAU/n,base=css(w.hue),bg=css('--bg');
   const a=R*w.r0,b=R*w.r1;
   for(let i=0;i<n;i++){
     const t0=i*s-Math.PI/2,t1=t0+s;
@@ -92,33 +97,35 @@ function bake(w){
     g.fillStyle=base;g.globalAlpha=[.95,.62,.8,.48][i%4];g.fill();g.globalAlpha=1;
     g.strokeStyle=bg;g.lineWidth=1;g.stroke();
     g.save();g.rotate(t0+s/2);
-    const band=b-a-14, arcW=s*(a+b)/2;
-    let fs=Math.min(arcW*.78,R*.05);g.font=`600 ${fs}px ${css('--label')}`;
+    const band=b-a-12, arcW=s*(a+b)/2;
+    let fs=Math.min(arcW*.72,R*.05);g.font=`600 ${fs}px ${css('--label')}`;
     const lab=cap(w.items[i]),tw=g.measureText(lab).width;
     if(tw>band){fs*=band/tw;g.font=`600 ${fs}px ${css('--label')}`}
-    g.fillStyle=bg;g.textAlign='right';g.textBaseline='middle';
-    g.fillText(lab,b-8,0);g.restore();
+    {const al=[.95,.62,.8,.48][i%4],h=x=>parseInt(x,16),c=[1,3,5].map(k=>h(base.substr(k,2))*al+h(bg.substr(k,2))*(1-al));
+     g.fillStyle=(.2126*c[0]+.7152*c[1]+.0722*c[2])/255>.5?bg:'#ffffff'} // dark or white label by segment brightness
+    g.textAlign='right';g.textBaseline='middle';
+    g.fillText(lab,b-6,0);g.restore();
   }
+  // ring edge
+  g.strokeStyle=bg;g.lineWidth=3;g.beginPath();g.arc(0,0,a,0,TAU);g.stroke();
   return c;
 }
 function idx(w){const n=w.items.length,s=TAU/n,a=((-w.rot)%TAU+TAU)%TAU;return Math.floor(a/s)%n}
+function snapRot(w,i){const s=TAU/w.items.length;let d=(-(i+.5)*s-w.rot)%TAU;d=((d+Math.PI)%TAU+TAU)%TAU-Math.PI;return w.rot+d}
 function draw(){
   ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,S,S);
   const cx=S/2,cy=S/2+6;
-  for(const k of ['outer','inner']){const w=wheels[k];
-    ctx.save();ctx.translate(cx,cy);ctx.rotate(w.rot);ctx.drawImage(w.img,-R,-R,2*R,2*R);ctx.restore();}
-  // hub
+  for(const w of W){ctx.save();ctx.translate(cx,cy);ctx.rotate(w.rot);ctx.drawImage(w.img,-R,-R,2*R,2*R);ctx.restore()}
   ctx.beginPath();ctx.arc(cx,cy,R*.12,0,TAU);ctx.fillStyle=css('--bg');ctx.fill();
   ctx.beginPath();ctx.arc(cx,cy,R*.04,0,TAU);ctx.fillStyle=css('--pin');ctx.fill();
-  // selection window line
   ctx.strokeStyle=css('--fg');ctx.lineWidth=1.5;ctx.globalAlpha=.55;
   ctx.beginPath();ctx.moveTo(cx,cy-R*.13);ctx.lineTo(cx,cy-R*.985);ctx.stroke();ctx.globalAlpha=1;
-  // pointer flapper
   ctx.save();ctx.translate(cx,cy-R-2);ctx.rotate(flap);
   ctx.beginPath();ctx.moveTo(-11,-10);ctx.lineTo(11,-10);ctx.lineTo(0,16);ctx.closePath();
   ctx.fillStyle=css('--pin');ctx.fill();ctx.restore();
 }
 
+// sound
 let ac,noise,lastClick=0;
 function audioOn(){try{if(!ac){ac=new (window.AudioContext||window.webkitAudioContext)();
   const n=Math.floor(ac.sampleRate*.006);noise=ac.createBuffer(1,n,ac.sampleRate);const d=noise.getChannelData(0);
@@ -132,33 +139,6 @@ function click(pitch){if(!ac||ac.state!=='running')return;const t=ac.currentTime
   o.frequency.exponentialRampToValueAtTime(pitch*.6,t+.03);
   og.gain.setValueAtTime(.5,t);og.gain.exponentialRampToValueAtTime(.0001,t+.035);
   o.connect(og).connect(ac.destination);o.start(t);o.stop(t+.04)}catch(e){}}
-
-function step(w,dt){
-  if(w.snap){w.rot+=(w.target-w.rot)*Math.min(1,dt*2.2);if(Math.abs(w.target-w.rot)<1e-4){w.rot=w.target;w.snap=false}}
-  else if(w.v){w.rot+=w.v*dt;const sv=Math.sign(w.v),fr=FR+.022*Math.abs(w.v); // speed-dependent: sheds fast spin, long gentle tail
-    w.v*=Math.exp(-fr*dt);w.v-=sv*DRAG*dt;if(Math.sign(w.v)!==sv)w.v=sv*.01;
-    if(Math.abs(w.v)<.07){const dir=Math.sign(w.v)||1;w.v=0;w.snap=true;const n=w.items.length,s=TAU/n,h=hist[w===wheels.outer?'outer':'inner'];
-      let i=idx(w);for(let k=0;k<n&&h.includes(i);k++)i=((i-dir)%n+n)%n;
-      let d=(-(i+.5)*s-w.rot)%TAU;d=((d+Math.PI)%TAU+TAU)%TAU-Math.PI;w.target=w.rot+d}}
-  const i=idx(w);if(i!==w.last){if(w.last>=0&&(w.v||w.snap)){flap=-.5*Math.sign(w.v||1);click(w===wheels.inner?520:340);live()}w.last=i}
-}
-let prev=performance.now();
-function loop(t){const dt=Math.min(.05,(t-prev)/1000);prev=t;
-  step(wheels.outer,dt);step(wheels.inner,dt);flap*=Math.exp(-14*dt);draw();
-  const busy=Object.values(wheels).some(w=>w.v||w.snap);
-  if(spinning&&!busy&&!drag){spinning=false;setTimeout(show,350)}
-  requestAnimationFrame(loop)}
-requestAnimationFrame(loop);
-
-function launch(main,v,raw){
-  const other=main===wheels.outer?wheels.inner:wheels.outer;
-  if(!raw){const sgn=Math.sign(v)||1;v=sgn*Math.min(40,Math.max(9+Math.random()*4,Math.abs(v)))}
-  main.v=v;main.snap=false;other.v=-v*(.65+Math.random()*.5);other.snap=false;spinning=true;
-  live();LV.hidden=false;
-  document.getElementById('res').hidden=true;
-}
-const LV=document.getElementById('live'),LM=document.getElementById('lm'),LL=document.getElementById('ll');
-function live(){LM.textContent=cap(MOOD[idx(wheels.outer)]);LL.textContent=cap(LOC[idx(wheels.inner)])}
 function tada(){if(!ac||ac.state!=='running')return;const t0=ac.currentTime+.02;
   const lp=ac.createBiquadFilter();lp.type='lowpass';lp.frequency.value=2600;lp.connect(ac.destination);
   const hit=(fr,start,len,peak)=>fr.forEach(f=>{const o=ac.createOscillator(),g=ac.createGain(),vib=ac.createOscillator(),vg=ac.createGain();
@@ -166,53 +146,99 @@ function tada(){if(!ac||ac.state!=='running')return;const t0=ac.currentTime+.02;
     g.gain.setValueAtTime(0,start);g.gain.linearRampToValueAtTime(peak,start+.02);
     g.gain.setValueAtTime(peak,start+len*.6);g.gain.exponentialRampToValueAtTime(.0001,start+len);
     o.connect(g).connect(lp);o.start(start);vib.start(start);o.stop(start+len+.05);vib.stop(start+len+.05)});
-  hit([392,494,587],t0,.16,.07);            // Taa
-  hit([523,659,784,1047],t0+.2,1.6,.065);  // Daaaa!
+  hit([392,494,587],t0,.16,.07);hit([523,659,784,1047],t0+.2,1.6,.065)}
+
+// physics
+function step(w,dt){
+  if(w.snap){w.rot+=(w.target-w.rot)*Math.min(1,dt*2.2);if(Math.abs(w.target-w.rot)<1e-4){w.rot=w.target;w.snap=false}}
+  else if(w.v){w.rot+=w.v*dt;const sv=Math.sign(w.v),fr=FR+.022*Math.abs(w.v);
+    w.v*=Math.exp(-fr*dt);w.v-=sv*DRAG*dt;if(Math.sign(w.v)!==sv)w.v=sv*.01;
+    if(Math.abs(w.v)<.07){const dir=Math.sign(w.v)||1,n=w.items.length;w.v=0;w.snap=true;
+      let i=idx(w);for(let k=0;k<n&&w.block&&w.block.has(cap(w.items[i]));k++)i=((i-dir)%n+n)%n;
+      w.target=snapRot(w,i)}}
+  const i=idx(w);if(i!==w.last){if(w.last>=0&&(w.v||w.snap)){flap=-.5*Math.sign(w.v||1);click(w.pitch);live(w)}w.last=i}
 }
+let prev=performance.now();
+function loop(t){const dt=Math.min(.05,(t-prev)/1000);prev=t;
+  W.forEach(w=>step(w,dt));flap*=Math.exp(-14*dt);draw();
+  const busy=W.some(w=>w.v||w.snap);
+  if(spinning&&!busy&&!drag){spinning=false;setTimeout(show,350)}
+  requestAnimationFrame(loop)}
+
+const isDouble=()=>count%3===0;
+// no-repeat window, read from saved history so it survives reloads:
+// a word can't come back until roughly a third of its wheel has been used
+function recent(w){
+  if(w===mood)return new Set(past.map(e=>e[0]).filter(Boolean).slice(0,40));
+  const c=w===wa?'a':'b';return new Set(past.flatMap(e=>e[1].filter(x=>x[1]===c).map(x=>x[0])).slice(0,12))}
+function launch(main,v,raw){
+  if(!raw){const sgn=Math.sign(v)||1;v=sgn*Math.min(20,Math.max(4.5+Math.random()*2,Math.abs(v)))}
+  count++;nextLabel();
+  W.forEach(w=>w.block=recent(w));
+  W.forEach((w,k)=>{w.snap=false;w.v=w===main?v:(k%2?-1:1)*Math.sign(main===wa?-v:v)*Math.abs(v)*(.6+Math.random()*.55)});
+  spinning=true;document.getElementById('lx').hidden=!isDouble();live();LV.hidden=false;
+  document.getElementById('res').hidden=true;
+}
+const LV=document.getElementById('live'),LM=document.getElementById('lm'),LL=document.getElementById('ll');
+const span=(t,c)=>{const s=document.createElement('span');s.className=c;s.textContent=t;return s};
+// big type: mood updates on mood ticks; location shows whichever location ring ticked last, one at a time
+function live(w){
+  if(isDouble()){LM.hidden=false;LM.style.color='var(--locb)';LM.textContent=cap(LOCB[idx(wb)]); // double: B big on top, A big below
+    LL.replaceChildren(span(cap(LOCA[idx(wa)]),'a'));return}
+  LM.hidden=false;LM.style.color='';LM.textContent=cap(MOOD[idx(mood)]);
+  if(w===mood)return;if(w!==wa&&w!==wb)w=Math.random()<.5?wa:wb;
+  LL.replaceChildren(w===wa?span(cap(LOCA[idx(wa)]),'a'):span(cap(LOCB[idx(wb)]),'b'))}
+function nextLabel(){const n=3-count%3;document.getElementById('nx').textContent=n===1?'Next: double!':'Double in '+n}
+
 function show(){LV.hidden=true;tada();
-  const mo=idx(wheels.outer),lo=idx(wheels.inner);
-  hist.outer.push(mo);hist.inner.push(lo);
-  for(const k in hist)while(hist[k].length>10)hist[k].shift();
-  document.getElementById('rm').textContent=cap(MOOD[mo]);
-  document.getElementById('rl').textContent=cap(LOC[lo]);
-  past.unshift([cap(MOOD[mo]),cap(LOC[lo])]);past=past.slice(0,50);savePast();renderPast();
+  const mi=idx(mood),ai=idx(wa),bi=idx(wb),dbl=isDouble();
+  let entry;
+  if(dbl){wa.hist.push(ai);wb.hist.push(bi);entry=['',[[cap(LOCB[bi]),'b'],[cap(LOCA[ai]),'a']]]}
+  else{mood.hist.push(mi);const useA=Math.random()<.5;
+    if(useA)wa.hist.push(ai);else wb.hist.push(bi);
+    entry=[cap(MOOD[mi]),[useA?[cap(LOCA[ai]),'a']:[cap(LOCB[bi]),'b']]]}
+  W.forEach(w=>{while(w.hist.length>10)w.hist.shift()});
+  render(entry);past.unshift(entry);past=past.slice(0,50);savePast();renderPast();
   document.getElementById('res').hidden=false;
 }
+// normal: [mood label] Mood / [location label] Loc.  Double: [location A] LocA / [location B] LocB, same layout
+function render([m,locs]){
+  const rmk=document.getElementById('rmk'),rm=document.getElementById('rm'),rk=document.getElementById('rk'),rl=document.getElementById('rl');
+  rmk.hidden=rm.hidden=false;rm.className='m';rl.className='l';
+  if(locs.length>1){const L=c=>'location '+c.toUpperCase();
+    rmk.textContent=L(locs[0][1]);rm.textContent=locs[0][0];rm.classList.add(locs[0][1]);
+    rk.textContent=L(locs[1][1]);rl.textContent=locs[1][0];rl.classList.add(locs[1][1])}
+  else{rmk.textContent='mood';rm.textContent=m;rk.textContent='location';rl.textContent=locs[0][0];rl.classList.add(locs[0][1])}}
 
 // drag
-let drag=null;
-const ang=e=>{const r=cv.getBoundingClientRect();return Math.atan2(e.clientY-r.top-S/2-6,e.clientX-r.left-S/2)};
-cv.addEventListener('pointerdown',e=>{
-  const r=cv.getBoundingClientRect(),d=Math.hypot(e.clientX-r.left-S/2,e.clientY-r.top-S/2-6)/R;
-  if(d>1.02)return;audioOn();
-  const w=d>wheels.inner.r1?wheels.outer:wheels.inner;
-  w.v=0;w.snap=false;cv.setPointerCapture(e.pointerId);
-  drag={w,a:ang(e),samples:[[performance.now(),0]],tot:0};
-});
+const geo=e=>{const r=cv.getBoundingClientRect(),x=e.clientX-r.left-S/2,y=e.clientY-r.top-S/2-6;return{a:Math.atan2(y,x),d:Math.hypot(x,y)/R}};
+cv.addEventListener('pointerdown',e=>{const {a,d}=geo(e);if(d>1.02||d<.12)return;audioOn();
+  const w=d>=mood.r0?mood:d>=wa.r0?wa:wb;
+  w.v=0;w.snap=false;cv.setPointerCapture(e.pointerId);drag={w,a,tot:0}});
 cv.addEventListener('pointermove',e=>{if(!drag)return;
-  const a=ang(e);let d=a-drag.a;d=((d+Math.PI)%TAU+TAU)%TAU-Math.PI;drag.a=a;
-  drag.w.rot+=d;drag.tot+=d;const t=performance.now();drag.samples.push([t,drag.tot]);
-  while(drag.samples.length>2&&t-drag.samples[0][0]>90)drag.samples.shift();});
+  const {a}=geo(e);let d=a-drag.a;d=((d+Math.PI)%TAU+TAU)%TAU-Math.PI;drag.a=a;drag.w.rot+=d;drag.tot+=d});
 function release(){if(!drag)return;const w=drag.w,tot=drag.tot;drag=null;
-  // force = total drag distance from press to release (radians)
-  const sgn=Math.sign(tot)||(Math.random()<.5?-1:1);
-  const d=Math.abs(tot);launch(w,sgn*Math.min(40,1.2*d+0.9*d*d),true)}
+  const sgn=Math.sign(tot)||(Math.random()<.5?-1:1),d=Math.abs(tot);
+  // impulse grows with drag distance: a nudge only ticks a few segments, a long sweep spins hard
+  launch(w,sgn*Math.max(.5,Math.min(20,.5*d+.45*d*d)),true)}
 cv.addEventListener('pointerup',release);cv.addEventListener('pointercancel',release);
 
-document.getElementById('go').onclick=()=>audioOn()||launch(wheels.outer,(Math.random()<.5?-1:1)*(14+Math.random()*10));
+document.getElementById('go').onclick=()=>{audioOn();launch(mood,(Math.random()<.5?-1:1)*(7+Math.random()*5))};
 document.getElementById('res').onclick=()=>document.getElementById('res').hidden=true;
-addEventListener('keydown',e=>{if(e.code==='Space'){e.preventDefault();document.getElementById('go').click()}
+addEventListener('keydown',e=>{if(e.code==='Space'){e.preventDefault();if(!spinning)document.getElementById('go').click()}
   if(e.key==='Escape')document.getElementById('res').hidden=true});
-let past=[];try{past=JSON.parse(localStorage.getItem('mlw-past')||'[]')}catch(e){}
-function savePast(){try{localStorage.setItem('mlw-past',JSON.stringify(past))}catch(e){}}
+
+let past=[];try{past=JSON.parse(localStorage.getItem('mlw3-past')||'[]')}catch(e){}
+function savePast(){try{localStorage.setItem('mlw3-past',JSON.stringify(past))}catch(e){}}
 function renderPast(){const hl=document.getElementById('hl');hl.innerHTML='';
   if(!past.length){const li=document.createElement('li');li.className='e';li.textContent='Spins will appear here.';hl.append(li);return}
-  for(const [m,l] of past){const li=document.createElement('li'),a=document.createElement('span'),b=document.createElement('span');
-    a.className='m';a.textContent=m;b.className='l';b.textContent=l;li.append(a,b);hl.append(li)}}
+  for(const [m,locs] of past){const li=document.createElement('li');if(m)li.append(span(m,'m'));
+    const l=span('','l');locs.forEach(([t,c],i)=>{if(i)l.append(' ');l.append(span(t,c))});li.append(l);hl.append(li)}}
 document.getElementById('clr').onclick=()=>{past=[];savePast();renderPast()};
-renderPast();
+renderPast();nextLabel();
 addEventListener('resize',layout);
 document.fonts.ready.then(layout);layout();
+requestAnimationFrame(loop);
 </script>
 
 </body></html>
