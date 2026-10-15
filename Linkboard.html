@@ -178,6 +178,8 @@ a.chip:hover{text-decoration:underline}
     <span>Attach link to selection</span><kbd>Ctrl K</kbd>
     <span>Edit a link</span><span>right-click it</span>
     <span>Edit note / text</span><span>double-click</span>
+    <span>Copy · cut · paste</span><span><kbd>Ctrl</kbd> C · X · V</span>
+    <span>Duplicate</span><kbd>Ctrl D</kbd>
     <span>Select several</span><span><kbd>Shift</kbd> drag · <kbd>Shift</kbd> click</span>
     <span>Delete selection</span><kbd>Del</kbd>
     <span>Paste image or URL</span><kbd>Ctrl V</kbd>
@@ -199,7 +201,7 @@ a.chip:hover{text-decoration:underline}
 
 <script>
 (()=>{
-const VERSION='1.11.0', KEY='linkboard.v1';
+const VERSION='1.12.0', KEY='linkboard.v1';
 const $=id=>document.getElementById(id);
 const stage=$('stage'), world=$('world'), ink=$('ink'), handle=$('handle');
 const PALETTE=['ink','red','blue','green','orange','purple','yellow'];
@@ -640,6 +642,7 @@ document.addEventListener('keydown',e=>{
   if(mod&&k==='z'){ e.preventDefault(); e.shiftKey?redo():undo(); return; }
   if(mod&&k==='y'){ e.preventDefault(); redo(); return; }
   if(mod&&k==='k'){ e.preventDefault(); linkForSelection(); return; }
+  if(mod&&k==='d'){ e.preventDefault(); const l=selItems(); if(l.length) pasteItems(l.map(x=>structuredClone(x))); return; }
   if(mod) return;
   if(e.key===' '){ e.preventDefault(); if(!spaceDown){ spaceDown=true; stage.style.cursor='grab'; } return; }
   if(e.key==='Delete'||e.key==='Backspace'){ e.preventDefault(); delSel(); return; }
@@ -672,11 +675,35 @@ function addImage(file,at){
   }; img.src=fr.result; };
   fr.readAsDataURL(file);
 }
+// ---------- copy / cut / paste items ----------
+let clip=null, pasteN=0;
+function selItems(){ const ids=sel?[sel]:[...group]; return items.filter(i=>ids.includes(i.id)); }
+function pasteItems(list){
+  pasteN++; const off=24*pasteN/view.z*view.z; const added=[];
+  for(const o of list){ const c=structuredClone(o); c.id=uid(); moveBy(c,o,off,off); items.push(c); added.push(c.id); }
+  group.clear(); sel=null; if(added.length===1) sel=added[0]; else added.forEach(id=>group.add(id));
+  if(tool!=='select') setTool('select'); commit();
+}
+function onCopy(e,cut){
+  if(editing||!dlgWrap.hidden||e.target.closest&&e.target.closest('input,textarea,[contenteditable="true"]')) return;
+  if(getSelection&&String(getSelection())) return;
+  const l=selItems(); if(!l.length) return;
+  clip=JSON.stringify({app:'linkboard-clip',items:l}); pasteN=0;
+  try{ e.clipboardData.setData('text/plain',clip); }catch{}
+  e.preventDefault();
+  if(cut){ const ids=new Set(l.map(i=>i.id)); items=items.filter(i=>!ids.has(i.id)); sel=null; group.clear(); commit(); }
+  toast((cut?'Cut ':'Copied ')+l.length+(l.length===1?' item.':' items.'));
+}
+document.addEventListener('copy',e=>onCopy(e,false));
+document.addEventListener('cut',e=>onCopy(e,true));
 document.addEventListener('paste',e=>{
   if(editing||!dlgWrap.hidden||e.target.closest&&e.target.closest('input,textarea,[contenteditable="true"]')) return;
   const dt=e.clipboardData; if(!dt) return;
   const f=[...dt.files].find(f=>f.type.startsWith('image/'));
   if(f){ e.preventDefault(); addImage(f,center()); return; }
+  const raw=dt.getData('text/plain');
+  if(clip&&(!raw||raw===clip)){ e.preventDefault(); pasteItems(JSON.parse(clip).items); return; }
+  try{ const d=JSON.parse(raw); if(d&&d.app==='linkboard-clip'&&Array.isArray(d.items)){ e.preventDefault(); clip=raw; pasteItems(clean(structuredClone(d.items))); return; } }catch{}
   const t=dt.getData('text/plain'); if(!t) return; e.preventDefault();
   try{ const d=JSON.parse(t); if(d&&d.app==='linkboard'){ loadData(d); return; } }catch{}
   const c=center(); addFromText(t,{x:c.x-60,y:c.y-20});
